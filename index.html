@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>KRC 인재개발원 모바일</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+  <style>
+    .fc { font-size: 11px; }
+    .fc-toolbar-title { font-size: 13px !important; font-weight: bold; }
+    .fc-button { padding: 3px 6px !important; font-size: 10px !important; }
+    .fc-daygrid-day-number { padding: 3px !important; }
+  </style>
+</head>
+<body class="bg-gray-100 text-gray-800 pb-20 select-none">
+
+  <!-- 상단 앱 헤더 -->
+  <header class="bg-blue-600 text-white px-4 py-3 sticky top-0 z-45 shadow-md flex justify-between items-center">
+    <div>
+      <h1 class="text-base font-bold">🏛️ KRC 인재개발원</h1>
+      <p class="text-[10px] text-blue-100">부서 통합 모바일 스케줄러</p>
+    </div>
+    <div class="flex gap-1.5">
+      <button onclick="openOrgModal()" class="text-xs bg-blue-500 px-2 py-1 rounded font-semibold">⚙️ 조직관리</button>
+    </div>
+  </header>
+
+  <!-- 메인 컨텐츠 영역 -->
+  <main class="max-w-md mx-auto p-3 space-y-3">
+
+    <!-- 1. 일정 확인 탭 -->
+    <section id="tab-schedules" class="space-y-3">
+      <div class="bg-white p-3 rounded-xl shadow-sm space-y-2">
+        <div class="flex justify-between items-center border-b pb-1.5">
+          <h2 class="font-bold text-gray-800 text-xs">📅 부서 공유 캘린더 (날짜 터치: 등록 / 일정 터치: 수정·삭제)</h2>
+        </div>
+        <div id="calendar" class="w-full"></div>
+      </div>
+      <div class="bg-white p-3 rounded-xl shadow-sm space-y-2">
+        <div class="flex justify-between items-center">
+          <h2 class="font-bold text-gray-800 text-xs">📋 등록된 일정 목록</h2>
+          <span id="scheduleCount" class="text-[11px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-semibold">0건</span>
+        </div>
+        <div id="scheduleList" class="space-y-2"></div>
+      </div>
+    </section>
+
+    <!-- 2. 강의실 예약 탭 -->
+    <section id="tab-rooms" class="hidden space-y-3">
+      <div class="bg-white p-3 rounded-xl shadow-sm space-y-3">
+        <h2 class="font-bold text-gray-800 text-xs border-b pb-1.5">🏫 강의실 간편 예약</h2>
+        <form onsubmit="handleRoomReserve(event)" class="space-y-2">
+          <div>
+            <label class="block text-[11px] font-semibold text-gray-600 mb-1">강의실 선택 (중복 가능)</label>
+            <div class="grid grid-cols-3 gap-1 text-[11px]">
+              <label class="border p-1.5 rounded text-center bg-gray-50 flex items-center justify-center gap-1"><input type="checkbox" name="rooms" value="대강의실"> 대강의실</label>
+              <label class="border p-1.5 rounded text-center bg-gray-50 flex items-center justify-center gap-1"><input type="checkbox" name="rooms" value="국제회의실"> 국제회의실</label>
+              <label class="border p-1.5 rounded text-center bg-gray-50 flex items-center justify-center gap-1"><input type="checkbox" name="rooms" value="101호"> 101호</label>
+              <label class="border p-1.5 rounded text-center bg-gray-50 flex items-center justify-center gap-1"><input type="checkbox" name="rooms" value="102호"> 102호</label>
+              <label class="border p-1.5 rounded text-center bg-gray-50 flex items-center justify-center gap-1"><input type="checkbox" name="rooms" value="103호"> 103호</label>
+              <label class="border p-1.5 rounded text-center bg-gray-50 flex items-center justify-center gap-1"><input type="checkbox" name="rooms" value="전산교육장"> 전산교육장</label>
+            </div>
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-gray-600 mb-1">교육 과정명</label>
+            <input type="text" id="roomTitle" required placeholder="예: 드론실무활용 교육" class="w-full border p-1.5 rounded-lg text-xs bg-gray-50">
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[11px] font-semibold text-gray-600 mb-1">시작일</label>
+              <input type="date" id="roomStartDate" required class="w-full border p-1.5 rounded-lg text-xs bg-gray-50">
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-gray-600 mb-1">종료일</label>
+              <input type="date" id="roomEndDate" required class="w-full border p-1.5 rounded-lg text-xs bg-gray-50">
+            </div>
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-gray-600 mb-1">담당자 성명</label>
+            <input type="text" id="roomManager" required placeholder="예: 남홍준" class="w-full border p-1.5 rounded-lg text-xs bg-gray-50">
+          </div>
+          <button type="submit" class="w-full py-2 bg-emerald-600 text-white rounded-lg text-xs font-semibold shadow">예약 신청하기</button>
+        </form>
+      </div>
+
+      <!-- 강의실 현황 캘린더 -->
+      <div class="bg-white p-3 rounded-xl shadow-sm space-y-2">
+        <h2 class="font-bold text-gray-800 text-xs border-b pb-1.5">📋 강의실 예약 현황 캘린더 (일정 터치: 수정·삭제)</h2>
+        <div id="roomCalendar" class="w-full"></div>
+      </div>
+    </section>
+
+    <!-- 3. 재실 현황 탭 -->
+    <section id="tab-status" class="hidden space-y-3">
+      <div class="bg-white p-3 rounded-xl shadow-sm space-y-3">
+        <div class="flex justify-between items-center border-b pb-1.5">
+          <h2 class="font-bold text-gray-800 text-xs">🚦 주요 관리자 재실 현황</h2>
+          <button onclick="openManagerModal()" class="text-[11px] bg-blue-50 text-blue-600 px-2 py-1 rounded font-semibold">순서 및 상태 편집</button>
+        </div>
+        <div id="managerStatusList" class="space-y-2"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 일정 등록 모달 -->
+  <div id="scheduleModal" class="hidden fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-3">
+    <div class="bg-white rounded-xl max-w-sm w-full p-4 space-y-3 shadow-2xl relative">
+      <h3 class="text-sm font-bold text-gray-800 border-b pb-1.5">✏️ 일정 등록</h3>
+      <form onsubmit="submitScheduleForm(event)" class="space-y-2 text-xs">
+        <div>
+          <label class="block font-semibold text-gray-600 mb-0.5">부서명</label>
+          <select id="modalDept" onchange="updateModalSubDepts()" required class="w-full border p-1.5 rounded bg-gray-50"></select>
+        </div>
+        <div>
+          <label class="block font-semibold text-gray-600 mb-0.5">부명</label>
+          <select id="modalSubDept" onchange="updateModalManagers()" required class="w-full border p-1.5 rounded bg-gray-50"></select>
+        </div>
+        <div>
+          <label class="block font-semibold text-gray-600 mb-0.5">담당자명</label>
+          <select id="modalManager" required class="w-full border p-1.5 rounded bg-gray-50"></select>
+        </div>
+        <div>
+          <label class="block font-semibold text-gray-600 mb-0.5">일정 제목</label>
+          <input type="text" id="modalTitle" required placeholder="예: 공문서 제출" class="w-full border p-1.5 rounded bg-gray-50 font-semibold">
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-semibold text-gray-600 mb-0.5">시작일</label>
+            <input type="date" id="modalStartDate" required class="w-full border p-1.5 rounded bg-gray-50">
+          </div>
+          <div>
+            <label class="block font-semibold text-gray-600 mb-0.5">종료일</label>
+            <input type="date" id="modalEndDate" required class="w-full border p-1.5 rounded bg-gray-50">
+          </div>
+        </div>
+        <div>
+          <label class="block font-semibold text-gray-600 mb-0.5">세부 내용 및 요약</label>
+          <textarea id="modalDescription" rows="2" placeholder="상세 내용 입력..." class="w-full border p-1.5 rounded bg-gray-50"></textarea>
+        </div>
+        <div class="flex justify-end gap-1.5 pt-2">
+          <button type="button" onclick="closeScheduleModal()" class="px-3 py-1.5 border rounded">취소</button>
+          <button type="submit" class="px-3 py-1.5 bg-blue-600 text-white rounded font-semibold">등록</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 일정 상세 수정/삭제 모달 -->
+  <div id="editModal" class="hidden fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-3">
+    <div class="bg-white rounded-xl max-w-sm w-full p-4 space-y-3 shadow-2xl relative">
+      <h3 class="text-sm font-bold text-gray-800 border-b pb-1.5">📄 일정 상세 및 수정/삭제</h3>
+      <input type="hidden" id="editEventId">
+      <div class="space-y-2 text-xs">
+        <div>
+          <label class="block font-semibold text-gray-600 mb-0.5">일정 제목</label>
+          <input type="text" id="editTitle" class="w-full border p-1.5 rounded bg-gray-50 font-semibold">
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-semibold text-gray-600 mb-0.5">시작일</label>
+            <input type="date" id="editStartDate" class="w-full border p-1.5 rounded bg-gray-50">
+          </div>
+          <div>
+            <label class="block font-semibold text-gray-600 mb-0.5">종료일</label>
+            <input type="date" id="editEndDate" class="w-full border p-1.5 rounded bg-gray-50">
+          </div>
+        </div>
+        <div>
+          <label class="block font-semibold text-gray-600 mb-0.5">세부 내용</label>
+          <textarea id="editDescription" rows="3" class="w-full border p-1.5 rounded bg-blue-50"></textarea>
+        </div>
+      </div>
+      <div class="flex justify-between items-center pt-2 border-t">
+        <button type="button" onclick="deleteEventAction()" class="px-3 py-1.5 bg-red-600 text-white rounded text-xs font-semibold">삭제</button>
+        <div class="flex gap-1.5">
+          <button type="button" onclick="closeEditModal()" class="px-3 py-1.5 border rounded text-xs">닫기</button>
+          <button type="button" onclick="updateEventAction()" class="px-3 py-1.5 bg-blue-600 text-white rounded text-xs font-semibold">수정 저장</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 강의실 예약 수정/삭제 모달 -->
+  <div id="roomEditModal" class="hidden fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-3">
+    <div class="bg-white rounded-xl max-w-sm w-full p-4 space-y-3 shadow-2xl relative">
+      <h3 class="text-sm font-bold text-gray-800 border-b pb-1.5">🏫 강의실 예약 상세 및 수정/삭제</h3>
+      <input type="hidden" id="editRoomId">
+      <div class="space-y-2 text-xs">
+        <div>
+          <label class="block font-semibold text-gray-600 mb-0.5">과정명 및 강의실</label>
+          <input type="text" id="editRoomTitle" class="w-full border p-1.5 rounded bg-gray-50 font-semibold">
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-semibold text-gray-600 mb-0.5">시작일</label>
+            <input type="date" id="editRoomStartDate" class="w-full border p-1.5 rounded bg-gray-50">
+          </div>
+          <div>
+            <label class="block font-semibold text-gray-600 mb-0.5">종료일</label>
+            <input type="date" id="editRoomEndDate" class="w-full border p-1.5 rounded bg-gray-50">
+          </div>
+        </div>
+        <div>
+          <label class="block font-semibold text-gray-600 mb-0.5">세부 내용</label>
+          <textarea id="editRoomDescription" rows="2" class="w-full border p-1.5 rounded bg-gray-50"></textarea>
+        </div>
+      </div>
+      <div class="flex justify-between items-center pt-2 border-t">
+        <button type="button" onclick="deleteRoomAction()" class="px-3 py-1.5 bg-red-600 text-white rounded text-xs font-semibold">예약 취소</button>
+        <div class="flex gap-1.5">
+          <button type="button" onclick="closeRoomEditModal()" class="px-3 py-1.5 border rounded text-xs">닫기</button>
+          <button type="button" onclick="updateRoomAction()" class="px-3 py-1.5 bg-blue-600 text-white rounded text-xs font-semibold">수정 저장</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 조직도(부서/부/담당자) 관리 모달 (조회/수정/삭제 추가) -->
+  <div id="orgModal" class="hidden fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-3">
+    <div class="bg-white rounded-xl max-w-sm w-full p-4 space-y-3 shadow-2xl relative text-xs">
+      <h3 class="text-sm font-bold text-gray-800 border-b pb-1.5">⚙️ 조직 구성 관리 (조회·수정·삭제)</h3>
+      
+      <!-- 현재 조직 구조 리스트 보기 및 삭제 -->
+      <div class="max-h-40 overflow-y-auto border p-2 rounded bg-gray-50 space-y-2" id="orgTreeList">
+        <!-- 자바스크립트로 동적 렌더링 -->
+      </div>
+
+      <div class="space-y-2 pt-2 border-t">
+        <div>
+          <label class="font-semibold text-gray-600 block mb-1">부서 추가</label>
+          <div class="flex gap-1">
+            <input type="text" id="newDeptName" placeholder="새 부서명" class="border p-1 rounded flex-grow bg-gray-50">
+            <button onclick="addDepartment()" class="px-3 py-1 bg-blue-600 text-white rounded">부서추가</button>
+          </div>
+        </div>
+        <div>
+          <label class="font-semibold text-gray-600 block mb-1">부(팀) 추가</label>
+          <div class="grid grid-cols-2 gap-1 mb-1">
+            <select id="orgDeptSelect" class="border p-1 rounded bg-gray-50"></select>
+            <input type="text" id="newSubDeptName" placeholder="새 부명" class="border p-1 rounded bg-gray-50">
+          </div>
+          <button onclick="addSubDepartment()" class="w-full py-1 bg-blue-600 text-white rounded">부 추가하기</button>
+        </div>
+        <div>
+          <label class="font-semibold text-gray-600 block mb-1">담당자 추가</label>
+          <div class="grid grid-cols-2 gap-1 mb-1">
+            <select id="orgDeptSelect2" onchange="renderOrgSubSelect2()" class="border p-1 rounded bg-gray-50"></select>
+            <select id="orgSubDeptSelect2" class="border p-1 rounded bg-gray-50"></select>
+          </div>
+          <div class="flex gap-1">
+            <input type="text" id="newManagerNameOrg" placeholder="담당자 성명" class="border p-1 rounded flex-grow bg-gray-50">
+            <button onclick="addManagerOrg()" class="px-3 py-1 bg-blue-600 text-white rounded">담당자추가</button>
+          </div>
+        </div>
+      </div>
+      <div class="flex justify-end pt-2 border-t">
+        <button onclick="closeOrgModal()" class="px-4 py-1.5 bg-gray-200 text-gray-700 rounded font-semibold">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 관리자 재실 상태 관리 모달 (순서 이동 및 수정/삭제 기능) -->
+  <div id="managerModal" class="hidden fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-3">
+    <div class="bg-white rounded-xl max-w-sm w-full p-4 space-y-3 shadow-2xl relative text-xs">
+      <h3 class="text-sm font-bold text-gray-800 border-b pb-1.5">🚦 주요 관리자 재실 상태 관리 (순서·수정)</h3>
+      <div class="space-y-2 max-h-56 overflow-y-auto" id="managerEditList"></div>
+      <div class="border-t pt-2 flex gap-1">
+        <input type="text" id="newManagerName" placeholder="새 관리자 이름/직책" class="border p-1.5 rounded flex-grow bg-gray-50">
+        <button onclick="addNewManager()" class="px-3 py-1.5 bg-blue-600 text-white rounded font-semibold">추가</button>
+      </div>
+      <div class="flex justify-end pt-2">
+        <button onclick="closeManagerModal()" class="px-4 py-1.5 bg-gray-200 text-gray-700 rounded font-semibold">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 하단 고정 내비게이션 바 -->
+  <nav class="fixed bottom-0 left-0 right-0 bg-white border-t py-2 px-6 flex justify-around items-center z-40 shadow-lg max-w-md mx-auto">
+    <button onclick="switchTab('schedules')" id="nav-schedules" class="flex flex-col items-center text-blue-600 font-bold">
+      <span class="text-lg">📅</span>
+      <span class="text-[10px] mt-0.5">일정확인</span>
+    </button>
+    <button onclick="switchTab('rooms')" id="nav-rooms" class="flex flex-col items-center text-gray-400">
+      <span class="text-lg">🏫</span>
+      <span class="text-[10px] font-medium mt-0.5">강의실예약</span>
+    </button>
+    <button onclick="switchTab('status')" id="nav-status" class="flex flex-col items-center text-gray-400">
+      <span class="text-lg">🚦</span>
+      <span class="text-[10px] font-medium mt-0.5">재실현황</span>
+    </button>
+  </nav>
+
+  <script>
+    let calendar, roomCalendar;
+
+    let orgData = JSON.parse(localStorage.getItem('krc_orgData')) || {
+      "인재개발원": { 
+        "인재육성부": ["남홍준", "장혜경", "황이날", "성종호"],
+        "교육운영부": []
+      }
+    };
+
+    let sharedEvents = JSON.parse(localStorage.getItem('krc_sharedEvents')) || [
+      { id: '1', dept: '인재개발원', subDept: '인재육성부', manager: '남홍준', title: '[남홍준] 공무국외여행 심고자료 제출', start: '2026-09-07', end: '2026-09-23', description: '제출마감: 2026-09-22' },
+      { id: '2', dept: '인재개발원', subDept: '인재육성부', manager: '황이날', title: '[황이날] 농식품인재개발원 10월 추가교육 신청', start: '2026-09-07', end: '2026-09-11', description: '수요조사 신청 건' }
+    ];
+
+    let roomEvents = JSON.parse(localStorage.getItem('krc_roomEvents')) || [
+      { id: 'r1', rooms: ['101호'], manager: '남홍준', title: '[101호] 드론실무활용(심화) 교육', start: '2026-09-16', end: '2026-09-19', description: '다중 강의실 테스트 일정' }
+    ];
+
+    let managersStatus = JSON.parse(localStorage.getItem('krc_managersStatus')) || [
+      { name: '인재개발원장', status: '재실' },
+      { name: '인재육성부장', status: '출장' },
+      { name: '교육기획부장', status: '재실' },
+      { name: '국제교육교류센터장', status: '휴가' }
+    ];
+
+    function saveData() {
+      localStorage.setItem('krc_orgData', JSON.stringify(orgData));
+      localStorage.setItem('krc_sharedEvents', JSON.stringify(sharedEvents));
+      localStorage.setItem('krc_roomEvents', JSON.stringify(roomEvents));
+      localStorage.setItem('krc_managersStatus', JSON.stringify(managersStatus));
+    }
+
+    function switchTab(tabName) {
+      document.getElementById('tab-schedules').classList.add('hidden');
+      document.getElementById('tab-rooms').classList.add('hidden');
+      document.getElementById('tab-status').classList.add('hidden');
+
+      document.getElementById('nav-schedules').className = 'flex flex-col items-center text-gray-400';
+      document.getElementById('nav-rooms').className = 'flex flex-col items-center text-gray-400';
+      document.getElementById('nav-status').className = 'flex flex-col items-center text-gray-400';
+
+      document.getElementById('tab-' + tabName).classList.remove('hidden');
+      document.getElementById('nav-' + tabName).className = 'flex flex-col items-center text-blue-600 font-bold';
+
+      if (tabName === 'schedules') {
+        renderSchedules();
+        if (!calendar) {
+          setTimeout(() => {
+            calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
+              initialView: 'dayGridMonth',
+              locale: 'ko',
+              headerToolbar: { left: 'prev,next', center: 'title', right: 'today' },
+              events: sharedEvents,
+              height: 300,
+              dateClick: function(info) { openScheduleModal(info.dateStr); },
+              eventClick: function(info) { openEditModal(info.event); }
+            });
+            calendar.render();
+          }, 50);
+        } else {
+          calendar.refetchEvents();
+          calendar.updateSize();
+        }
+      } else if (tabName === 'rooms') {
+        if (!roomCalendar) {
+          setTimeout(() => {
+            roomCalendar = new FullCalendar.Calendar(document.getElementById('roomCalendar'), {
+              initialView: 'dayGridMonth',
+              locale: 'ko',
+              headerToolbar: { left: 'prev,next', center: 'title', right: 'today' },
+              events: roomEvents,
+              height: 280,
+              eventClick: function(info) { openRoomEditModal(info.event); }
+            });
+            roomCalendar.render();
+          }, 50);
+        } else {
+          roomCalendar.refetchEvents();
+          roomCalendar.updateSize();
+        }
+      } else if (tabName === 'status') {
+        renderManagerStatus();
+      }
+    }
+
+    function renderSchedules() {
+      const container = document.getElementById('scheduleList');
+      document.getElementById('scheduleCount').innerText = sharedEvents.length + '건';
+      
+      if (sharedEvents.length === 0) {
+        container.innerHTML = '<div class="text-center py-4 text-gray-400 text-xs">등록된 일정이 없습니다.</div>';
+        return;
+      }
+
+      container.innerHTML = sharedEvents.map(ev => `
+        <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100 space-y-1 text-xs">
+          <div class="flex justify-between items-start">
+            <span class="font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">${ev.manager}</span>
+            <span class="text-[10px] text-gray-400">${ev.start} ~ ${ev.end}</span>
+          </div>
+          <div class="font-bold text-gray-800">${ev.title}</div>
+          ${ev.description ? `<p class="text-[11px] text-gray-500">${ev.description}</p>` : ''}
+        </div>
+      `).join('');
+    }
+
+    // 일정 등록 모달
+    function openScheduleModal(dateStr) {
+      const deptKeys = Object.keys(orgData);
+      const deptEl = document.getElementById('modalDept');
+      deptEl.innerHTML = deptKeys.map(d => `<option value="${d}">${d}</option>`).join('');
+      updateModalSubDepts();
+
+      document.getElementById('modalStartDate').value = dateStr || new Date().toISOString().split('T')[0];
+      document.getElementById('modalEndDate').value = dateStr || new Date().toISOString().split('T')[0];
+      document.getElementById('modalTitle').value = '';
+      document.getElementById('modalDescription').value = '';
+      document.getElementById('scheduleModal').classList.remove('hidden');
+    }
+
+    function closeScheduleModal() { document.getElementById('scheduleModal').classList.add('hidden'); }
+
+    function updateModalSubDepts() {
+      const dept = document.getElementById('modalDept').value;
+      const subEl = document.getElementById('modalSubDept');
+      let subs = dept && orgData[dept] ? Object.keys(orgData[dept]) : [];
+      subEl.innerHTML = subs.map(s => `<option value="${s}">${s}</option>`).join('');
+      updateModalManagers();
+    }
+
+    function updateModalManagers() {
+      const dept = document.getElementById('modalDept').value;
+      const sub = document.getElementById('modalSubDept').value;
+      const mgrEl = document.getElementById('modalManager');
+      let mgrs = dept && sub && orgData[dept][sub] ? orgData[dept][sub] : [];
+      mgrEl.innerHTML = mgrs.map(m => `<option value="${m}">${m}</option>`).join('');
+    }
+
+    function submitScheduleForm(e) {
+      e.preventDefault();
+      const dept = document.getElementById('modalDept').value;
+      const subDept = document.getElementById('modalSubDept').value;
+      const manager = document.getElementById('modalManager').value;
+      const title = document.getElementById('modalTitle').value;
+      const start = document.getElementById('modalStartDate').value;
+      const end = document.getElementById('modalEndDate').value;
+      const desc = document.getElementById('modalDescription').value;
+
+      const newEvt = {
+        id: String(Date.now()),
+        dept: dept,
+        subDept: subDept,
+        manager: manager,
+        title: `[${manager}] ${title}`,
+        start: start,
+        end: end,
+        description: desc
+      };
+
+      sharedEvents.push(newEvt);
+      saveData();
+      if (calendar) {
+        calendar.removeAllEvents();
+        calendar.addEventSource(sharedEvents);
+      }
+      renderSchedules();
+      closeScheduleModal();
+      alert("일정이 등록되었습니다!");
+    }
+
+    // 일정 수정/삭제 모달
+    function openEditModal(event) {
+      document.getElementById('editEventId').value = event.id;
+      document.getElementById('editTitle').value = event.title;
+      document.getElementById('editStartDate').value = event.startStr;
+      document.getElementById('editEndDate').value = event.endStr ? event.endStr.split('T')[0] : event.startStr;
+      document.getElementById('editDescription').value = event.extendedProps.description || "";
+      document.getElementById('editModal').classList.remove('hidden');
+    }
+
+    function closeEditModal() { document.getElementById('editModal').classList.add('hidden'); }
+
+    function updateEventAction() {
+      const id = document.getElementById('editEventId').value;
+      const title = document.getElementById('editTitle').value;
+      const start = document.getElementById('editStartDate').value;
+      const end = document.getElementById('editEndDate').value;
+      const desc = document.getElementById('editDescription').value;
+
+      let target = sharedEvents.find(ev => ev.id === id);
+      if (target) {
+        target.title = title;
+        target.start = start;
+        target.end = end;
+        target.description = desc;
+      }
+      saveData();
+      if (calendar) {
+        calendar.removeAllEvents();
+        calendar.addEventSource(sharedEvents);
+      }
+      renderSchedules();
+      closeEditModal();
+      alert("일정이 수정되었습니다.");
+    }
+
+    function deleteEventAction() {
+      const id = document.getElementById('editEventId').value;
+      if (!confirm("정말 이 일정을 삭제하시겠습니까?")) return;
+      
+      sharedEvents = sharedEvents.filter(ev => ev.id !== id);
+      saveData();
+      if (calendar) {
+        calendar.removeAllEvents();
+        calendar.addEventSource(sharedEvents);
+      }
+      renderSchedules();
+      closeEditModal();
+      alert("일정이 삭제되었습니다.");
+    }
+
+    // 강의실 예약 처리 및 수정/삭제
+    function handleRoomReserve(e) {
+      e.preventDefault();
+      const checkedRooms = Array.from(document.querySelectorAll('input[name="rooms"]:checked')).map(el => el.value);
+      if (checkedRooms.length === 0) { alert("최소 1개 이상의 강의실을 선택해주세요."); return; }
+
+      const title = document.getElementById('roomTitle').value;
+      const start = document.getElementById('roomStartDate').value;
+      const end = document.getElementById('roomEndDate').value;
+      const manager = document.getElementById('roomManager').value;
+      const roomsStr = checkedRooms.join(', ');
+
+      roomEvents.push({
+        id: String(Date.now()),
+        rooms: checkedRooms,
+        manager: manager,
+        title: `[${roomsStr}] ${title} (${manager})`,
+        start: start,
+        end: end,
+        description: `사용 강의실: ${roomsStr}`
+      });
+
+      saveData();
+      if (roomCalendar) {
+        roomCalendar.removeAllEvents();
+        roomCalendar.addEventSource(roomEvents);
+      }
+      alert("강의실 예약이 완료되었습니다!");
+      e.target.reset();
+    }
+
+    function openRoomEditModal(event) {
+      document.getElementById('editRoomId').value = event.id;
+      document.getElementById('editRoomTitle').value = event.title;
+      document.getElementById('editRoomStartDate').value = event.startStr;
+      document.getElementById('editRoomEndDate').value = event.endStr ? event.endStr.split('T')[0] : event.startStr;
+      document.getElementById('editRoomDescription').value = event.extendedProps.description || "";
+      document.getElementById('roomEditModal').classList.remove('hidden');
+    }
+
+    function closeRoomEditModal() { document.getElementById('roomEditModal').classList.add('hidden'); }
+
+    function updateRoomAction() {
+      const id = document.getElementById('editRoomId').value;
+      const title = document.getElementById('editRoomTitle').value;
+      const start = document.getElementById('editRoomStartDate').value;
+      const end = document.getElementById('editRoomEndDate').value;
+      const desc = document.getElementById('editRoomDescription').value;
+
+      let target = roomEvents.find(ev => ev.id === id);
+      if (target) {
+        target.title = title;
+        target.start = start;
+        target.end = end;
+        target.description = desc;
+      }
+      saveData();
+      if (roomCalendar) {
+        roomCalendar.removeAllEvents();
+        roomCalendar.addEventSource(roomEvents);
+      }
+      closeRoomEditModal();
+      alert("강의실 예약이 수정되었습니다.");
+    }
+
+    function deleteRoomAction() {
+      const id = document.getElementById('editRoomId').value;
+      if (!confirm("정말 이 강의실 예약을 취소하시겠습니까?")) return;
+      
+      roomEvents = roomEvents.filter(ev => ev.id !== id);
+      saveData();
+      if (roomCalendar) {
+        roomCalendar.removeAllEvents();
+        roomCalendar.addEventSource(roomEvents);
+      }
+      closeRoomEditModal();
+      alert("강의실 예약이 취소되었습니다.");
+    }
+
+    // 조직 관리 모달 (조회, 수정, 삭제 완전 구현)
+    function openOrgModal() {
+      renderOrgTree();
+      renderOrgSelects();
+      document.getElementById('orgModal').classList.remove('hidden');
+    }
+    function closeOrgModal() { document.getElementById('orgModal').classList.add('hidden'); }
+
+    function renderOrgTree() {
+      const container = document.getElementById('orgTreeList');
+      let html = '';
+      for (let dept in orgData) {
+        html += `<div class="border-b pb-1 mb-1">
+          <div class="flex justify-between items-center font-bold text-blue-700">
+            <span>🏛️ ${dept}</span>
+            <button onclick="removeDept('${dept}')" class="text-red-500 text-[10px] px-1 font-bold">부서삭제</button>
+          </div>`;
+        for (let subDept in orgData[dept]) {
+          html += `<div class="ml-3 mt-1 border-l-2 pl-2 border-gray-200">
+            <div class="flex justify-between items-center font-semibold text-gray-700">
+              <span>📂 ${subDept}</span>
+              <button onclick="removeSubDept('${dept}', '${subDept}')" class="text-red-500 text-[10px] px-1">부삭제</button>
+            </div>
+            <div class="ml-2 flex flex-wrap gap-1 mt-1">`;
+          orgData[dept][subDept].forEach((mgr, idx) => {
+            html += `<span class="bg-white border px-1.5 py-0.5 rounded flex items-center gap-1 text-[11px]">
+              ${mgr} <button onclick="removeManagerOrgItem('${dept}', '${subDept}', ${idx})" class="text-red-500 font-bold">×</button>
+            </span>`;
+          });
+          html += `</div></div>`;
+        }
+        html += `</div>`;
+      }
+      container.innerHTML = html || '<div class="text-gray-400 text-center">등록된 조직이 없습니다.</div>';
+    }
+
+    function renderOrgSelects() {
+      const deptKeys = Object.keys(orgData);
+      const sel1 = document.getElementById('orgDeptSelect');
+      const sel2 = document.getElementById('orgDeptSelect2');
+      sel1.innerHTML = deptKeys.map(d => `<option value="${d}">${d}</option>`).join('');
+      sel2.innerHTML = deptKeys.map(d => `<option value="${d}">${d}</option>`).join('');
+      renderOrgSubSelect2();
+    }
+
+    function renderOrgSubSelect2() {
+      const dept = document.getElementById('orgDeptSelect2').value;
+      const subSel = document.getElementById('orgSubDeptSelect2');
+      let subs = dept && orgData[dept] ? Object.keys(orgData[dept]) : [];
+      subSel.innerHTML = subs.map(s => `<option value="${s}">${s}</option>`).join('');
+    }
+
+    function addDepartment() {
+      const val = document.getElementById('newDeptName').value.trim();
+      if (!val) return;
+      if (orgData[val]) { alert("이미 존재하는 부서입니다."); return; }
+      orgData[val] = {};
+      saveData();
+      document.getElementById('newDeptName').value = '';
+      renderOrgTree();
+      renderOrgSelects();
+    }
+
+    function addSubDepartment() {
+      const dept = document.getElementById('orgDeptSelect').value;
+      const val = document.getElementById('newSubDeptName').value.trim();
+      if (!dept || !val) return;
+      if (!orgData[dept]) orgData[dept] = {};
+      if (orgData[dept][val]) { alert("이미 존재하는 부입니다."); return; }
+      orgData[dept][val] = [];
+      saveData();
+      document.getElementById('newSubDeptName').value = '';
+      renderOrgTree();
+      renderOrgSelects();
+    }
+
+    function addManagerOrg() {
+      const dept = document.getElementById('orgDeptSelect2').value;
+      const sub = document.getElementById('orgSubDeptSelect2').value;
+      const val = document.getElementById('newManagerNameOrg').value.trim();
+      if (!dept || !sub || !val) return;
+      if (!orgData[dept][sub]) orgData[dept][sub] = [];
+      if (orgData[dept][sub].includes(val)) { alert("이미 존재하는 담당자입니다."); return; }
+      orgData[dept][sub].push(val);
+      saveData();
+      document.getElementById('newManagerNameOrg').value = '';
+      renderOrgTree();
+      alert("담당자가 추가되었습니다.");
+    }
+
+    function removeDept(dept) {
+      if(!confirm(`'${dept}' 부서를 정말 삭제하시겠습니까?`)) return;
+      delete orgData[dept];
+      saveData();
+      renderOrgTree();
+      renderOrgSelects();
+    }
+
+    function removeSubDept(dept, subDept) {
+      if(!confirm(`'${subDept}' 부를 정말 삭제하시겠습니까?`)) return;
+      delete orgData[dept][subDept];
+      saveData();
+      renderOrgTree();
+      renderOrgSelects();
+    }
+
+    function removeManagerOrgItem(dept, subDept, idx) {
+      orgData[dept][subDept].splice(idx, 1);
+      saveData();
+      renderOrgTree();
+    }
+
+    // 재실 현황 (순서 이동 및 수정/삭제 기능)
+    function renderManagerStatus() {
+      const container = document.getElementById('managerStatusList');
+      container.innerHTML = managersStatus.map(m => {
+        let badgeColor = 'bg-green-500';
+        if (m.status === '출장') badgeColor = 'bg-yellow-500';
+        if (m.status === '휴가') badgeColor = 'bg-red-500';
+        return `
+          <div class="flex justify-between items-center p-2.5 bg-gray-50 rounded-xl border text-xs">
+            <span class="font-semibold text-gray-700">${m.name}</span>
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full ${badgeColor}"></span>
+              <span class="font-bold text-gray-600">${m.status}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function openManagerModal() {
+      const listEl = document.getElementById('managerEditList');
+      listEl.innerHTML = managersStatus.map((m, idx) => `
+        <div class="flex items-center justify-between gap-1.5 border-b pb-1.5 text-xs">
+          <div class="flex items-center gap-1">
+            <div class="flex flex-col">
+              <button onclick="moveManager(${idx}, -1)" class="text-[9px] bg-gray-200 px-1 rounded font-bold hover:bg-gray-300">▲</button>
+              <button onclick="moveManager(${idx}, 1)" class="text-[9px] bg-gray-200 px-1 rounded font-bold hover:bg-gray-300">▼</button>
+            </div>
+            <input type="text" value="${m.name}" onchange="updateManagerName(${idx}, this.value)" class="border p-1 rounded w-24 bg-white font-semibold">
+          </div>
+          <select onchange="updateManagerStatus(${idx}, this.value)" class="border p-1 rounded text-xs bg-white">
+            <option value="재실" ${m.status==='재실'?'selected':''}>🟢 재실</option>
+            <option value="출장" ${m.status==='출장'?'selected':''}>🟡 출장</option>
+            <option value="휴가" ${m.status==='휴가'?'selected':''}>🔴 휴가</option>
+          </select>
+          <button onclick="removeManager(${idx})" class="text-red-500 text-xs px-1 font-bold">삭제</button>
+        </div>
+      `).join('');
+      document.getElementById('managerModal').classList.remove('hidden');
+    }
+
+    function closeManagerModal() { document.getElementById('managerModal').classList.add('hidden'); renderManagerStatus(); }
+    
+    function moveManager(idx, direction) {
+      const targetIdx = idx + direction;
+      if (targetIdx < 0 || targetIdx >= managersStatus.length) return;
+      const temp = managersStatus[idx];
+      managersStatus[idx] = managersStatus[targetIdx];
+      managersStatus[targetIdx] = temp;
+      saveData();
+      openManagerModal();
+    }
+
+    function updateManagerName(idx, name) {
+      managersStatus[idx].name = name.trim();
+      saveData();
+    }
+
+    function updateManagerStatus(idx, status) {
+      managersStatus[idx].status = status;
+      saveData();
+    }
+
+    function addNewManager() {
+      const name = document.getElementById('newManagerName').value.trim();
+      if (!name) return;
+      managersStatus.push({ name: name, status: '재실' });
+      document.getElementById('newManagerName').value = '';
+      saveData();
+      openManagerModal();
+    }
+
+    function removeManager(idx) {
+      managersStatus.splice(idx, 1);
+      saveData();
+      openManagerModal();
+    }
+
+    // 초기 실행
+    switchTab('schedules');
+  </script>
+</body>
+</html>
